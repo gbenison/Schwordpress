@@ -1,0 +1,9 @@
+#!/bin/bash
+
+THTTPD=/usr/sbin/thttpd
+PORT=8080
+BASEDIR=`dirname $0`
+
+$THTTPD -dd $BASEDIR -c '*' -p $PORT
+
+
