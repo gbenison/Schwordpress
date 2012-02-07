@@ -15,6 +15,7 @@ exec guile -s $0 2>/dev/null
 (define css-file-name "schwordpress-standard.css")
 
 (use-modules (srfi srfi-1)
+	     (srfi srfi-19)
 	     (dbi dbi)
 	     (sxml simple)
 	     (www cgi)
@@ -52,18 +53,23 @@ exec guile -s $0 2>/dev/null
 
 (define (gather-posts cn limit)
   (dbi-query cn
-	     (format #f "SELECT * FROM posts ORDER BY timestamp DESC LIMIT ~a" limit))
+	     (format #f "SELECT title,timestamp,content FROM posts ORDER BY timestamp DESC LIMIT ~a" limit))
   (let loop ((result '()))
     (let ((next (dbi-get_row cn)))
       (if next
 	  (loop (cons next result))
 	  (reverse result)))))
 
+(define (format-timestamp timestamp)
+  (date->string
+   (string->date timestamp "~Y-~m-~d~H:~M")
+   "Posted at ~H:~M on ~A, ~B ~d ~Y"))
+
 (define (post->paragraph post)
   `(div (@ (class "post"))
-	(div (@ (class "post-title"))             ,(assoc-ref post "title"))
-	(div (@ (class "timestamp")) "Posted at " ,(assoc-ref post "timestamp"))
-	(p (@ (class "content"))                  ,(assoc-ref post "content"))))
+	(div (@ (class "post-title"))    ,(assoc-ref post "title"))
+	(div (@ (class "timestamp"))     ,(format-timestamp (assoc-ref post "timestamp")))
+	(p (@ (class "content"))         ,(assoc-ref post "content"))))
 
 (define (standard-page-with-content . content)
   `(html
@@ -75,7 +81,7 @@ exec guile -s $0 2>/dev/null
 		    (type "text/css")))
 	  '()))
     (body
-     (a (@ (href "schwordpress.cgi"))
+     (a (@ (href "schwordpress.cgi")(id "blog-title"))
 	(h1 ,blog-name))
      ,content)))
 
@@ -89,13 +95,14 @@ exec guile -s $0 2>/dev/null
 	      (query
 	       (format
 		#f
-		"INSERT INTO posts VALUES (~a, now(), ~a)"
+		"INSERT INTO posts (title, timestamp, content) VALUES (~a, now(), ~a)"
 		(->string title)
 		(->string content))))
-	 (with-output-to-file "/tmp/query.txt" (lambda ()(display query)))
 	 (dbi-query cn query)))
    (standard-page-with-content
-   '(a (@ (href "schwordpress.cgi?request=new-post")) "New post")
+   '(p (a (@ (id "new-post-button")
+	     (href "schwordpress.cgi?request=new-post"))
+	  "NEW POST"))
    (map post->paragraph (gather-posts cn 999))))
 
 ;; FIXME validate input

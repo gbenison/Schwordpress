@@ -2,3 +2,27 @@ div.post {
     border-bottom:   1px solid;
     padding-bottom:  5px;
 }
+
+#new-post-button {
+    text-decoration: none;
+    font-weight:     bold;
+    color:           black;
+    padding:         10px;
+    margin:          15px;
+    background:      lightblue;
+    border:          1px solid black;
+}
+
+a#blog-title {
+    text-decoration: none;
+    font-family:     sans;
+}
+
+.post-title {
+    font-weight:     bold;
+    font-size:       120%;
+}
+
+.timestamp {
+    font-size:       80%;
+}
