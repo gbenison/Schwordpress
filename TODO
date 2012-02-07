@@ -1,0 +1,4 @@
++ Add 'delete' function for posts
++ css: clean up 'New Post' button placement
++ css: clean up post title, timestamp placement
++ add session support to enable/disable post editing
