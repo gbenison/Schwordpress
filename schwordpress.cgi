@@ -12,6 +12,7 @@ exec guile -s $0 2>/dev/null
 (define DATABASE-PASSWORD "")
 
 (define blog-name "Schwordpress Demo")
+(define css-file-name "schwordpress-standard.css")
 
 (use-modules (srfi srfi-1)
 	     (dbi dbi)
@@ -59,14 +60,20 @@ exec guile -s $0 2>/dev/null
 	  (reverse result)))))
 
 (define (post->paragraph post)
-  `(div (@ (class "post"0))
+  `(div (@ (class "post"))
 	(div (@ (class "post-title"))             ,(assoc-ref post "title"))
 	(div (@ (class "timestamp")) "Posted at " ,(assoc-ref post "timestamp"))
 	(p (@ (class "content"))                  ,(assoc-ref post "content"))))
 
 (define (standard-page-with-content . content)
   `(html
-    (head (title "It's Schwordpress!"))
+    (head
+     (title "It's Schwordpress!")
+     ,(if css-file-name
+	  `(link (@ (rel "stylesheet")
+		    (href ,css-file-name)
+		    (type "text/css")))
+	  '()))
     (body
      (a (@ (href "schwordpress.cgi"))
 	(h1 ,blog-name))
