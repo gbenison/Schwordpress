@@ -26,3 +26,7 @@ a#blog-title {
 .timestamp {
     font-size:       80%;
 }
+
+.meta a {
+    font-size:       70%;
+}

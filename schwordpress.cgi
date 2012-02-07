@@ -53,7 +53,7 @@ exec guile -s $0 2>/dev/null
 
 (define (gather-posts cn limit)
   (dbi-query cn
-	     (format #f "SELECT title,timestamp,content FROM posts ORDER BY timestamp DESC LIMIT ~a" limit))
+	     (format #f "SELECT id,title,timestamp,content FROM posts ORDER BY timestamp DESC LIMIT ~a" limit))
   (let loop ((result '()))
     (let ((next (dbi-get_row cn)))
       (if next
@@ -69,7 +69,10 @@ exec guile -s $0 2>/dev/null
   `(div (@ (class "post"))
 	(div (@ (class "post-title"))    ,(assoc-ref post "title"))
 	(div (@ (class "timestamp"))     ,(format-timestamp (assoc-ref post "timestamp")))
-	(p (@ (class "content"))         ,(assoc-ref post "content"))))
+	(p (@ (class "content"))         ,(assoc-ref post "content"))
+	(div (@ (class "meta"))
+	     (a (@ (href ,(format #f "schwordpress.cgi?request=delete&id=~a" (assoc-ref post "id"))))
+		"DELETE POST"))))
 
 (define (standard-page-with-content . content)
   `(html
@@ -124,6 +127,10 @@ exec guile -s $0 2>/dev/null
 	   (input (@ (type "submit")
 		     (value "POST")))))))
 
+(define (delete-requested-post)
+  (let* ((post-id (assoc-ref cgi:query-string 'id)) ;; FIXME handle error gracefully
+	 (query (format #f "DELETE FROM posts WHERE id=~a LIMIT 1" post-id)))
+    (dbi-query cn query)))
 
 ;; output.
 (let ((mp (mouthpiece (current-output-port))))
@@ -133,6 +140,9 @@ exec guile -s $0 2>/dev/null
       (sxml->html
        (case (->symbol cgi:request)
 	 ((new-post)  (new-post))
+	 ((delete)
+	  (delete-requested-post)
+	  (main-page))
 	 ((#f)        (main-page))
 	 (else "** error: unknown request **"))))
   (mp #:send-reply))
