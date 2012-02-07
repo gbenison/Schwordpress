@@ -1,0 +1,5 @@
+"Anything you can implement using PHP, you can implement just as well,
+probably better, using Scheme and existing libraries."
+
+As an illustration, here is a reimplementation of the popular Wordpress 
+publishing platform in Scheme, using (sxml simple) and the www utils.
