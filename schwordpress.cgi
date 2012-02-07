@@ -110,8 +110,10 @@ exec guile -s $0 2>/dev/null
 		(input (@ (type "text")
 			  (name "new-post-title"))))
 	   (div (@ (id "new-post-content"))
-		(input (@ (type "text")
-			  (name "new-post-content"))))
+		(textarea (@ (name "new-post-content")
+			     (rows 20)
+			     (cols 60))
+			  "- Enter new post content here -"))
 	   (input (@ (type "submit")
 		     (value "POST")))))))
 
