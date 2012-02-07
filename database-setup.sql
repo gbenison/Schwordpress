@@ -4,6 +4,10 @@
 CREATE DATABASE IF NOT EXISTS schwordpress;
 USE schwordpress;
 CREATE TABLE IF NOT EXISTS `posts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
   `title` varchar(255) DEFAULT NULL,
   `timestamp` datetime DEFAULT NULL,
-  `content` text);
+  `content` text,
+  PRIMARY KEY (`id`));
+
+
