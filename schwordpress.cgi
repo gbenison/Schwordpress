@@ -52,7 +52,7 @@ exec guile -s $0 2>/dev/null
 
 (define (gather-posts cn limit)
   (dbi-query cn
-	     (format #f "SELECT * FROM posts LIMIT ~a" limit))
+	     (format #f "SELECT * FROM posts ORDER BY timestamp DESC LIMIT ~a" limit))
   (let loop ((result '()))
     (let ((next (dbi-get_row cn)))
       (if next
