@@ -198,8 +198,11 @@ exec guile -s $0 2>/dev/null
 		    (type "text/css")))
 	  '()))
     (body
-     (a (@ (href "schwordpress.cgi")(id "blog-title"))
-	(h1 ,blog-name))
+     ,(run-hooks
+       'with-header
+       `(div (@ (class "header"))
+	     (a (@ (href "schwordpress.cgi")(id "blog-title"))
+		(h1 ,blog-name))))
      ,content)))
 
 (define (->string x)
