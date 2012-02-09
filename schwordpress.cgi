@@ -28,6 +28,17 @@ exec guile -s $0 2>/dev/null
 ; functions lacking side effects, whose behavior is unlikely to be altered
 ; by plugins.
 
+(define (dir->files dirname)
+  (let ((dir-stream (opendir dirname)))
+    (let loop ()
+      (let ((next (readdir dir-stream)))
+	(if (not (eof-object? next))
+	    (cons next (loop))
+	    '())))))
+
+(define (string-match-pred pattern)
+  (lambda (str)(string-match pattern str)))
+
 (define log
   (let ((log-file (open-output-file "/tmp/schwordpress.log")))
     (lambda args (map (lambda (x)
@@ -150,16 +161,10 @@ exec guile -s $0 2>/dev/null
 ; The usual way to put it there is to create a symlink.
 ;
 
-(let ((dir-stream (opendir "plugins/enabled")))
-  (let loop ()
-    (let ((next (readdir dir-stream)))
-      (if (not (eof-object? next))
-	  (begin
-	    (if (string-match ".scm$" next)
-		(let ((fname (string-append (getcwd) "/plugins/enabled/" next)))
-		  (log "plugin:" fname)
-		  (load fname)))
-	    (loop))))))
+(for-each
+ (lambda (fname) (load (string-append "plugins/" fname)))
+ (filter (string-match-pred ".scm$")
+	 (dir->files (string-append (getcwd) "/plugins/enabled"))))
 
 ; ------------- content generation -------
 
