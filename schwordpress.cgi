@@ -7,6 +7,15 @@ exec guile -s $0 2>/dev/null
 
 !#
 
+(use-modules (srfi srfi-1)
+	     (srfi srfi-19)
+	     (ice-9 regex)
+	     (dbi dbi)
+	     (sxml simple)
+	     (www cgi)
+	     (www server-utils answer))
+
+; --------- parameters ------------
 (define DATABASE          "schwordpress")
 (define DATABASE-USER     "")
 (define DATABASE-PASSWORD "")
@@ -14,17 +23,21 @@ exec guile -s $0 2>/dev/null
 (define blog-name "Schwordpress Demo")
 (define css-file-name "schwordpress-standard.css")
 
-(use-modules (srfi srfi-1)
-	     (srfi srfi-19)
-	     (dbi dbi)
-	     (sxml simple)
-	     (www cgi)
-	     (www server-utils answer))
+; ----------- utilities --------------
+
+; functions lacking side effects, whose behavior is unlikely to be altered
+; by plugins.
+
+(define log
+  (let ((log-file (open-output-file "/tmp/schwordpress.log")))
+    (lambda args (map (lambda (x)
+			(display x log-file)
+			(display " " log-file)
+			(newline log-file))
+		      args))))
 
 (define (sxml->html xml)
   (with-output-to-string (lambda()(sxml->xml xml))))
-
-(cgi:init)
 
 (define (->symbol x)
   (cond ((symbol? x) x)
@@ -38,6 +51,24 @@ exec guile -s $0 2>/dev/null
 	(cons (string->symbol (car tmp))(cadr tmp))
 	(cons 'na "NA"))))
 
+; ------------ hooks --------------------------------
+
+(define %hooks% '())
+
+(define (attach-to-hook! name op)
+  (set! %hooks% (assoc-set! %hooks% name
+			    (cons op (or (assoc-ref %hooks% name) '())))))
+
+(define (run-hooks name init)
+  (fold
+   (lambda (op init)(op init))
+   init
+   (or (assoc-ref %hooks% name) '())))
+
+; ------------ cgi and database initialization ------
+
+(cgi:init)
+
 (define cgi:query-string (map query->pair (string-split (cgi:getenv 'query-string) #\&)))
 (define cgi:request (assoc-ref cgi:query-string 'request))
 
@@ -50,6 +81,26 @@ exec guile -s $0 2>/dev/null
 			   "socket"
 			   "/var/run/mysqld/mysqld.sock")
 			 ":")))
+
+; ------------- load plugins -------------
+;
+; All available plugins reside in "plugins".
+; An "enabled" plugin residues in "plugins/enabled".
+; The usual way to put it there is to create a symlink.
+;
+
+(let ((dir-stream (opendir "plugins/enabled")))
+  (let loop ()
+    (let ((next (readdir dir-stream)))
+      (if (not (eof-object? next))
+	  (begin
+	    (if (string-match ".scm$" next)
+		(let ((fname (string-append (getcwd) "/plugins/enabled/" next)))
+		  (log "plugin:" fname)
+		  (load fname)))
+	    (loop))))))
+
+; ------------- content generation -------
 
 (define (gather-posts cn limit)
   (dbi-query cn
@@ -66,13 +117,15 @@ exec guile -s $0 2>/dev/null
    "Posted at ~H:~M on ~A, ~B ~d ~Y"))
 
 (define (post->paragraph post)
-  `(div (@ (class "post"))
-	(div (@ (class "post-title"))    ,(assoc-ref post "title"))
-	(div (@ (class "timestamp"))     ,(format-timestamp (assoc-ref post "timestamp")))
-	(p (@ (class "content"))         ,(assoc-ref post "content"))
-	(div (@ (class "meta"))
-	     (a (@ (href ,(format #f "schwordpress.cgi?request=delete&id=~a" (assoc-ref post "id"))))
-		"DELETE POST"))))
+  (run-hooks
+   'post-post
+   `(div (@ (class "post"))
+	 (div (@ (class "post-title"))    ,(assoc-ref post "title"))
+	 (div (@ (class "timestamp"))     ,(format-timestamp (assoc-ref post "timestamp")))
+	 (p (@ (class "content"))         ,(assoc-ref post "content"))
+	 (div (@ (class "meta"))
+	      (a (@ (href ,(format #f "schwordpress.cgi?request=delete&id=~a" (assoc-ref post "id"))))
+		 "DELETE POST")))))
 
 (define (standard-page-with-content . content)
   `(html
