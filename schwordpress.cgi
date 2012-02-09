@@ -162,7 +162,7 @@ exec guile -s $0 2>/dev/null
 ;
 
 (for-each
- (lambda (fname) (load (string-append "plugins/" fname)))
+ (lambda (fname) (load (string-append (getcwd) "/plugins/" fname)))
  (filter (string-match-pred ".scm$")
 	 (dir->files (string-append (getcwd) "/plugins/enabled"))))
 
@@ -230,7 +230,6 @@ exec guile -s $0 2>/dev/null
 	  "NEW POST"))
    (map post->paragraph (gather-posts cn 999))))
 
-;; FIXME validate input
 (define (new-post)
   (standard-page-with-content
    `((h2 "New post")
