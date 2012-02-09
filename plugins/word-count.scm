@@ -1,10 +1,12 @@
 (use-modules (srfi srfi-1))
 
-(define (is-content? node)
-  (and (equal? (car node) 'p)
-       (let ((attrs (find-child-with-name node '@)))
-	 (and attrs (let ((class (find-child-with-name attrs 'class)))
-		      (equal? (cadr class) "content"))))))
+(define is-content?
+  (and-predicates (node-name=? 'p)
+		  (attribute=? 'class "content")))
+
+(define is-timestamp?
+  (and-predicates (node-name=? 'div)
+		  (attribute=? 'class "timestamp")))
 
 (attach-to-hook!
  'post-post
@@ -14,8 +16,8 @@
 	  (n (length (string-tokenize text))))
    (apply-to-relevant-node
     post
-    is-content?
+    is-timestamp?
     (insert-after-attributes
-     (format #f "length ~a -- " n))))))
+     (format #f "~a WORDS -- " n))))))
 
 

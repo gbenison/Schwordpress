@@ -86,6 +86,32 @@ exec guile -s $0 2>/dev/null
 		       (cons content (cddr node)))))
 	  (else (cons (car node)(cons content (cdr node)))))))
 
+(define (get-attribute node name)
+  (let ((attrs (find-child-with-name node '@)))
+    (and attrs (let ((attr (find-child-with-name attrs name)))
+		 (and attr
+		      (if (null? (cdr attr))
+			  #t
+			  (cadr attr)))))))
+
+(define (attribute-predicate attribute-name op)
+  (lambda (node)
+    (let ((attr (get-attribute node attribute-name)))
+      (and attr (op attr)))))
+
+(define (attribute=? key value)
+  (attribute-predicate key (lambda (x)(equal? x value))))
+
+(define (node-name=? name)
+  (lambda (node)(and (list? node)
+		     (not (null? node))
+		     (equal? (car node) name))))
+
+(define (and-predicates . predicates)
+  (lambda (node)
+    (fold (lambda (op init)
+	    (and (op node) init)) #t predicates)))
+
 ; ------------ hooks --------------------------------
 
 (define %hooks% '())
