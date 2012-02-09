@@ -51,6 +51,41 @@ exec guile -s $0 2>/dev/null
 	(cons (string->symbol (car tmp))(cadr tmp))
 	(cons 'na "NA"))))
 
+(define (find-child-with-name root name)
+  (find (lambda (x)(and (list? x)(equal? (car x) name))) root))
+
+(define (find-child-with-predicate root predicate)
+  (if (predicate root)
+      root
+      (find (lambda (child)
+	      (find-child-with-predicate child predicate))
+	    (filter list? root))))
+
+;; Echos 'root', except recursively tests children for
+;; (predicate node) == #t, and if so, replaces node
+;; with (op node).
+(define (apply-to-relevant-node root predicate op)
+  (if (predicate root)
+      (op root)
+      (map (lambda (node)
+	     (if (list? node)
+		 (apply-to-relevant-node node predicate op)
+		 node))
+	   root)))
+
+;; Returns a function(node) that inserts "content" after the attributes
+;; element, or immediately after the name if no attributes element found.
+(define (insert-after-attributes content)
+  (lambda (node)
+    (cond ((null? (cdr node))
+	   (cons (car node)(cons content (cdr node))))
+	  ((and (list? (cadr node))
+		(equal? '@ (caadr node)))
+	   (cons (car node)
+		 (cons (cadr node)
+		       (cons content (cddr node)))))
+	  (else (cons (car node)(cons content (cdr node)))))))
+
 ; ------------ hooks --------------------------------
 
 (define %hooks% '())
