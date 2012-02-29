@@ -37,8 +37,7 @@ exec guile -s $0 2>>guile-error.log
 	     (srfi srfi-19)
 	     (dbi dbi)
 	     (sxml simple)
-	     (www cgi)
-	     (www server-utils answer))
+	     (www cgi))
 
 (define (sxml->html xml)
   (with-output-to-string (lambda()(sxml->xml xml))))
@@ -152,16 +151,16 @@ exec guile -s $0 2>>guile-error.log
     (dbi-query cn query)))
 
 ;; output.
-(let ((mp (mouthpiece (current-output-port))))
-  (mp #:set-reply-status:success)
-  (mp #:add-header #:content-type "text/html")
-  (mp #:add-content
-      (sxml->html
-       (case (->symbol cgi:request)
-	 ((new-post)  (new-post))
-	 ((delete)
-	  (delete-requested-post)
-	  (main-page))
-	 ((#f)        (main-page))
-	 (else "** error: unknown request **"))))
-  (mp #:send-reply))
+(display "Content-type: text/html")
+(newline)
+(newline)
+(display
+ (sxml->html
+  (case (->symbol cgi:request)
+    ((new-post)  (new-post))
+    ((delete)
+     (delete-requested-post)
+     (main-page))
+    ((#f)        (main-page))
+    (else "** error: unknown request **"))))
+
