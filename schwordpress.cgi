@@ -18,9 +18,11 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #  
 
-export GUILE_LOAD_PATH=$GUILE_LOAD_PATH:`pwd`;
+WWW_PATH=${HOME}/software/projects/guile-www/upstream/guile-www/install/share/site;
+export GUILE_LOAD_PATH=$GUILE_LOAD_PATH:`pwd`:$WWW_PATH;
 export GUILE_WARN_DEPRECATED=no;
-exec guile -s $0 2>/dev/null
+# exec guile -s $0 2>/dev/null
+exec guile -s $0 2>>guile-error.log
 
 !#
 

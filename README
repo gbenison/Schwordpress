@@ -1,5 +1,6 @@
-"Anything you can implement using PHP, you can implement just as well,
-probably better, using Scheme and existing libraries."
+"Though Scheme is not often thought of as a web programming language,
+it can be used to create just about any web application you might
+create with a more common web language such as PHP."
 
 As an illustration, here is a reimplementation of the popular Wordpress 
 publishing platform in Scheme, using (sxml simple) and the www utils.
