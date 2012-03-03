@@ -4,9 +4,9 @@
   (and-predicates (node-name=? 'p)
 		  (attribute=? 'class "content")))
 
-(define is-timestamp?
+(define is-byline?
   (and-predicates (node-name=? 'div)
-		  (attribute=? 'class "timestamp")))
+		  (attribute=? 'class "byline")))
 
 (attach-to-hook!
  'post-post
@@ -16,7 +16,7 @@
 	  (n (length (string-tokenize text))))
    (apply-to-relevant-node
     post
-    is-timestamp?
+    is-byline?
     (insert-after-attributes
      (format #f "~a WORDS -- " n))))))
 
