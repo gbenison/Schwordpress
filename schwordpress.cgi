@@ -123,12 +123,17 @@ exec guile -s $0 2>>guile-error.log
 	       (div (@ (id "meta"))
 		    ,(let ((user (session-get-user session)))
 		       (if user
-			   `((span "Welcome, " ,user)
-			     (a (@ (href "schwordpress.cgi?request=login"))
-				"Log in as a different user"))
-			   `((span "Not logged in")
-			     (a (@ (href "schwordpress.cgi?request=login"))
-				"Log in")))))
+			   `(ul
+			     (li (span "Welcome, " ,user))
+			     (li (a (@ (href "schwordpress.cgi?request=login"))
+				    "Log in as a different user"))
+			     (li (a
+				  (@ (href "schwordpress.cgi?request=logout"))
+				  "Log out")))
+			    `(ul
+			      (li (span "Not logged in"))
+			      (li (a (@ (href "schwordpress.cgi?request=login"))
+				     "Log in"))))))
 	       (p (a (@ (id "new-post-button")
 			(href "schwordpress.cgi?request=new-post"))
 		     "NEW POST")))))))
@@ -233,6 +238,9 @@ exec guile -s $0 2>>guile-error.log
 	  (if (process-login)
 	      (main-page)
 	      (invalid-login-page)))
+	 ((logout)
+	  (session-set-user! session #f)
+	  (main-page))
 	 ((#f)        (main-page))
 	 (else "** error: unknown request **"))))
   (mp #:set-reply-status:success)
