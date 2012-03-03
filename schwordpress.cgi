@@ -70,7 +70,9 @@ exec guile -s $0 2>>guile-error.log
 			   "/var/run/mysqld/mysqld.sock")
 			 ":")))
 
-(define session (session:db (lambda (query)(dbi-query cn query)(dbi-get_row cn)) "sessions"))
+(define session
+  (session:db
+   (lambda (query)(dbi-query cn query)(dbi-get_row cn)) "sessions"))
 
 (define (gather-posts cn limit)
   (dbi-query cn
@@ -166,8 +168,11 @@ exec guile -s $0 2>>guile-error.log
 (define (process-login)
   (let ((uname  (safe-car (cgi:values "uname")))
 	(passwd (safe-car (cgi:values "password"))))
-    ;; FIXME check against an actual password database!!
-    (and (equal? passwd "123456")
+    (dbi-query
+     cn
+     (format #f "SELECT * FROM users WHERE uname='~a' and password='~a'"
+	     uname passwd))
+    (and (dbi-get_row cn)
 	 (session-set-user! session uname))))
    
 (define (main-page)
