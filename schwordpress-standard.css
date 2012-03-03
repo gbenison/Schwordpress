@@ -1,6 +1,99 @@
+
+/****** Overall page layout ******/
+
+body {
+    margin-left:   5%;
+    margin-right:  5%;
+}
+
+div#container {
+    float:    left;
+    position: relative;
+    width:    100%;
+}
+
+div#content {
+    position: absolute;
+    left:     0;
+    width:    75%;
+}
+
+div#sidebar {
+    position: absolute;
+    right:    0;
+    width:    20%;
+}
+
+/******  header             ******/
+
+div#header {
+    margin:          0;
+    padding-bottom:  1.5em;
+    margin-bottom:   0.5em;
+    border-bottom:   2px solid;
+}
+
+h1 {
+    margin:          0;
+}
+
+a#blog-title {
+    text-decoration: none;
+    font-family:     sans-serif;
+}
+
+/****** posts ***********/
+
 div.post {
     border-bottom:   1px solid;
     padding-bottom:  5px;
+}
+
+p.content {
+    margin-left:     5%;
+    margin-right:    5%;
+}
+
+.post-title {
+    font-weight:     bold;
+    font-size:       120%;
+}
+
+.byline {
+    font-size:       80%;
+    font-family:     sans-serif;
+}
+
+div.meta a {
+    visibility:      hidden;
+    text-transform:  uppercase;
+    text-decoration: none;
+    color:           red;
+}
+
+div.meta:hover a {
+    visibility:      visible;
+}
+
+div.meta a {
+    font-size:       70%;
+}
+
+/************** sidebar ***************/
+
+#sidebar {
+    padding-top:     5em;
+}
+
+div#meta > ul {
+    margin:          0;
+    padding:         0;
+    margin-bottom:   2em;
+    list-style-type: none;
+}
+
+div#meta > ul li {
+    margin-bottom:   0.5em;
 }
 
 #new-post-button {
@@ -13,20 +106,28 @@ div.post {
     border:          1px solid black;
 }
 
-a#blog-title {
-    text-decoration: none;
-    font-family:     sans;
+/************* login form ************/
+
+form#login {
+    margin-left:     20%;
+    width:           20em;
 }
 
-.post-title {
+form#login > div {
+    margin-bottom:   1em;
+    float:           left;
+    width:           100%;
+}
+
+form#login > div > input {
+    float:           right;
+}
+
+div.invalid_login_warning {
+    padding:         0.5em;
     font-weight:     bold;
-    font-size:       120%;
-}
-
-.timestamp {
-    font-size:       80%;
-}
-
-.meta a {
-    font-size:       70%;
+    margin-bottom:   1em;
+    border:          1px solid red;
+    background-color: #ffaaaa;
+    text-align:      center;
 }
