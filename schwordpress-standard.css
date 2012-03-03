@@ -131,3 +131,17 @@ div.invalid_login_warning {
     background-color: #ffaaaa;
     text-align:      center;
 }
+
+/************ new post form ***********/
+
+div#new_post {
+    margin-left:    10%;
+}
+
+div#new_post div {
+    margin-bottom:  1em;
+}
+
+#new-post-title > input {
+    margin-left:    1em;
+}

@@ -331,20 +331,21 @@ exec guile -s $0 2>>guile-error.log
   (standard-page-with-content
    (with-login-required
     `((h2 "New post")
-      (form (@ (method "POST")
-	       (action "schwordpress.cgi")
-	       (name "new-post"))
-	    (div (@ (id "new-post-title"))
-		 "Title"
-		 (input (@ (type "text")
-			   (name "new-post-title"))))
-	    (div (@ (id "new-post-content"))
-		 (textarea (@ (name "new-post-content")
-			      (rows 20)
-			      (cols 60))
-			   "- Enter new post content here -"))
-	    (input (@ (type "submit")
-		      (value "POST"))))))))
+      (div (@ (id "new_post"))
+	   (form (@ (method "POST")
+		    (action "schwordpress.cgi")
+		    (name "new-post"))
+		 (div (@ (id "new-post-title"))
+		      "Title"
+		      (input (@ (type "text")
+				(name "new-post-title"))))
+		 (div (@ (id "new-post-content"))
+		      (textarea (@ (name "new-post-content")
+				   (rows 20)
+				   (cols 60))
+				"- Enter new post content here -"))
+		 (input (@ (type "submit")
+			   (value "POST")))))))))
 
 (define (delete-requested-post)
   (if (session-get-user session) ;; login required.
