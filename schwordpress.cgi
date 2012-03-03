@@ -128,7 +128,10 @@ exec guile -s $0 2>>guile-error.log
 				"Log in as a different user"))
 			   `((span "Not logged in")
 			     (a (@ (href "schwordpress.cgi?request=login"))
-				"Log in"))))))))))
+				"Log in")))))
+	       (p (a (@ (id "new-post-button")
+			(href "schwordpress.cgi?request=new-post"))
+		     "NEW POST")))))))
 
 (define (->string x)
   (with-output-to-string (lambda ()(write x))))
@@ -182,15 +185,13 @@ exec guile -s $0 2>>guile-error.log
 	      (query
 	       (format
 		#f
-		"INSERT INTO posts (title, timestamp, content) VALUES (~a, now(), ~a)"
+		"INSERT INTO posts (title, timestamp, content, author) VALUES (~a, now(), ~a, ~a)"
 		(->string title)
-		(->string content))))
+		(->string content)
+		(->string (session-get-user session)))))
 	 (dbi-query cn query)))
    (standard-page-with-content
-   '(p (a (@ (id "new-post-button")
-	     (href "schwordpress.cgi?request=new-post"))
-	  "NEW POST"))
-   (map post->paragraph (gather-posts cn 999))))
+    (map post->paragraph (gather-posts cn 999))))
 
 (define (new-post)
   (standard-page-with-content
