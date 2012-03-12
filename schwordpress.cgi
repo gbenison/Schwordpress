@@ -31,8 +31,7 @@ exec guile -s $0 2>>guile-error.log
 	     (ice-9 regex)
 	     (sxml simple)
 	     (www session db)
-	     (www cgi)
-	     (www server-utils answer))
+	     (www cgi))
 
 ; --------- parameters ------------
 (define DATABASE          "schwordpress")
@@ -354,10 +353,11 @@ exec guile -s $0 2>>guile-error.log
 	(dbi-query cn query))))
 
 ;; output.
-(let ((mp (mouthpiece (current-output-port))))
-  (mp #:add-header #f (session-propagate session))
-  (mp #:add-content
-      (sxml->html
+(display (session-propagate session))
+(newline)
+(newline)
+
+(sxml->xml
        (case (->symbol cgi:request)
 	 ((new-post)  (new-post))
 	 ((delete)
@@ -372,9 +372,6 @@ exec guile -s $0 2>>guile-error.log
 	  (session-set-user! session #f)
 	  (main-page))
 	 ((#f)        (main-page))
-	 (else "** error: unknown request **"))))
-  (mp #:set-reply-status:success)
-  (mp #:send-reply))
-
+	 (else "** error: unknown request **")))
 
 
