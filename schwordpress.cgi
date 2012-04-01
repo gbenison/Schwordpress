@@ -26,6 +26,7 @@ exec guile -s $0 2>>guile-error.log
 !#
 
 (use-modules (srfi srfi-1)
+	     (srfi srfi-13)
 	     (srfi srfi-19)
 	     (dbi dbi)
 	     (ice-9 regex)
@@ -45,6 +46,9 @@ exec guile -s $0 2>>guile-error.log
 
 ; functions lacking side effects, whose behavior is unlikely to be altered
 ; by plugins.
+
+(define (fs s . args)
+  (apply format #f s args))
 
 (define (dir->files dirname)
   (let ((dir-stream (opendir dirname)))
@@ -79,7 +83,7 @@ exec guile -s $0 2>>guile-error.log
   (cond ((symbol? x) x)
 	((string? x) (string->symbol x))
 	((not x) #f)
-	(else (string->symbol (format #f "~a" x)))))
+	(else (string->symbol (fs "~a" x)))))
 
 (define (query->pair query)
   (let ((tmp (string-split query #\=)))
@@ -179,6 +183,9 @@ exec guile -s $0 2>>guile-error.log
 			   "/var/run/mysqld/mysqld.sock")
 			 ":")))
 
+(define (dbq s . args)
+  (dbi-query cn (apply fs s args)))
+
 ; ------------- load plugins -------------
 ;
 ; All available plugins reside in "plugins".
@@ -194,11 +201,10 @@ exec guile -s $0 2>>guile-error.log
 ; ------------- content generation -------
 (define session
   (session:db
-   (lambda (query)(dbi-query cn query)(dbi-get_row cn)) "sessions"))
+   (lambda (query)(dbq query)(dbi-get_row cn)) "sessions"))
 
 (define (gather-posts cn limit)
-  (dbi-query cn
-	     (format #f "SELECT id,title,timestamp,content,author FROM posts ORDER BY timestamp DESC LIMIT ~a" limit))
+  (dbq "SELECT id,title,timestamp,content,author FROM posts ORDER BY timestamp DESC LIMIT ~a" limit))
   (let loop ((result '()))
     (let ((next (dbi-get_row cn)))
       (if next
@@ -225,7 +231,7 @@ exec guile -s $0 2>>guile-error.log
 	      ,(if (session-get-user session)
 		   `(a
 		     (@ (href
-			 ,(format #f "schwordpress.cgi?request=delete&id=~a" (assoc-ref post "id"))))
+			 ,(fs "schwordpress.cgi?request=delete&id=~a" (assoc-ref post "id"))))
 		       "Delete post")
 		   "")))))
 
@@ -267,7 +273,15 @@ exec guile -s $0 2>>guile-error.log
 		     "NEW POST")))))))
 
 (define (->string x)
-  (with-output-to-string (lambda ()(write x))))
+  (object->string
+   ;; Zonk CR; it renders as "\x0d", which is ugly.
+   ;; We don't bother replacing it w/ other whitespace because
+   ;; "normally" (given an RFC-conforming client) it is followed
+   ;; by LF to represent EOL.
+   (string-delete (if (string? x)
+                      x
+                      (fs "~a" x))
+                  #\cr)))
 
 (define (login-form)
   `(form (@ (id "login")
@@ -304,25 +318,19 @@ exec guile -s $0 2>>guile-error.log
 (define (process-login)
   (let ((uname  (safe-car (cgi:values "uname")))
 	(passwd (safe-car (cgi:values "password"))))
-    (dbi-query
-     cn
-     (format #f "SELECT * FROM users WHERE uname='~a' and password='~a'"
-	     uname passwd))
+    (dbq "SELECT * FROM users WHERE uname='~a' and password='~a'"
+	 uname passwd)
     (and (dbi-get_row cn)
 	 (session-set-user! session uname))))
    
 (define (main-page)
    (if (member "new-post-title" (cgi:names))
-       (let* ((title (car (cgi:values "new-post-title")))
-	      (content (car (cgi:values "new-post-content")))
-	      (query
-	       (format
-		#f
-		"INSERT INTO posts (title, timestamp, content, author) VALUES (~a, now(), ~a, ~a)"
-		(->string title)
-		(->string content)
-		(->string (session-get-user session)))))
-	 (dbi-query cn query)))
+       (let ((title (cgi:value "new-post-title"))
+	     (content (cgi:value "new-post-content")))
+	 (dbq "INSERT INTO posts (title, timestamp, content, author) VALUES (~a, now(), ~a, ~a)"
+	      (->string title)
+	      (->string content)
+	      (->string (session-get-user session)))))
    (standard-page-with-content
     (map post->paragraph (gather-posts cn 999))))
 
@@ -348,9 +356,8 @@ exec guile -s $0 2>>guile-error.log
 
 (define (delete-requested-post)
   (if (session-get-user session) ;; login required.
-      (let* ((post-id (assoc-ref cgi:query-string 'id)) ;; FIXME handle error gracefully
-	     (query (format #f "DELETE FROM posts WHERE id=~a LIMIT 1" post-id)))
-	(dbi-query cn query))))
+      (let ((post-id (assoc-ref cgi:query-string 'id))) ;; FIXME handle error gracefully
+        (dbq "DELETE FROM posts WHERE id=~a LIMIT 1" post-id))))
 
 ;; output.
 (display (session-propagate session))
