@@ -31,6 +31,7 @@ exec guile -s $0 2>>guile-error.log
 	     (dbi dbi)
 	     (ice-9 regex)
 	     (sxml simple)
+	     (htmlprag)
 	     (www session db)
 	     (www cgi))
 
@@ -58,6 +59,22 @@ exec guile -s $0 2>>guile-error.log
 	    (cons next (loop))
 	    '())))))
 
+(define (port->list port)
+  (let ((next (read port)))
+    (if (eof-object? next)
+	'()
+	(cons next (port->list port)))))
+
+(define (delimit xs delimiter)
+  (fold-right
+   (lambda (next result)
+     (cons next
+	   (if (null? result)
+	       result
+	       (cons delimiter result))))
+   '()
+   xs))
+
 (define (string-match-pred pattern)
   (lambda (str)(string-match pattern str)))
 
@@ -76,14 +93,16 @@ exec guile -s $0 2>>guile-error.log
 (define blog-name "Schwordpress Demo")
 (define css-file-name "schwordpress-standard.css")
 
-(define (sxml->html xml)
-  (with-output-to-string (lambda()(sxml->xml xml))))
-
 (define (->symbol x)
   (cond ((symbol? x) x)
 	((string? x) (string->symbol x))
 	((not x) #f)
 	(else (string->symbol (fs "~a" x)))))
+
+(define (symbol/string->string x)
+  (if (symbol? x)
+      (symbol->string x)
+      x))
 
 (define (query->pair query)
   (let ((tmp (string-split query #\=)))
@@ -220,19 +239,43 @@ exec guile -s $0 2>>guile-error.log
     (string->date (assoc-ref post "timestamp") "~Y-~m-~d~H:~M")
     " ~H:~M on ~A, ~B ~d ~Y")))
 
-(define (post->paragraph post)
+;; Convert post's 'content', a string which is supposed to contain SXML, to
+;; an SXML object suitable for including in the output SXML tree.
+(define (post-content->sxml post)
+  (let* ((content (assoc-ref post "content"))
+	 (sxml (map symbol/string->string (port->list (open-input-string content)))))
+    (catch #t
+      (lambda ()
+	;; Attempt to render sxml content to a string, thus throwing an error if there's a problem.
+	(for-each sxml->html sxml)
+	(delimit sxml " "))
+      (lambda args
+	`(div (@ (class "invalid-post"))
+	      (div (@ (class "label"))
+		   (p "* Problem with this post *"))
+	      (div (@ (class "detail"))
+		   (p ,(delete-button post))
+		   (p "This post's content:")
+		   (blockquote ,content)
+		   "Could not be rendered correctly:"
+		   (blockquote ,(format #f "~a" args))))))))
+
+(define (delete-button post)
+  `(a
+    (@ (href
+	,(format #f "schwordpress.cgi?request=delete&id=~a" (assoc-ref post "id"))))
+    "Delete post"))
+
+(define (post->sxml post)
   (run-hooks
    'post-post
    `(div (@ (class "post"))
 	 (div (@ (class "post-title"))    ,(assoc-ref post "title"))
 	 (div (@ (class "byline"))        ,(format-byline post))
-	 (p (@ (class "content"))         ,(assoc-ref post "content"))
+	 (div (@ (class "content"))       ,(post-content->sxml post))
 	 (div (@ (class "meta"))
 	      ,(if (session-get-user session)
-		   `(a
-		     (@ (href
-			 ,(fs "schwordpress.cgi?request=delete&id=~a" (assoc-ref post "id"))))
-		       "Delete post")
+		   (delete-button post)
 		   "")))))
 
 (define (standard-page-with-content . content)
@@ -325,17 +368,29 @@ exec guile -s $0 2>>guile-error.log
 	 uname passwd)
     (and (dbi-get_row cn)
 	 (session-set-user! session uname))))
-   
+
+;; FIXME will this throw exceptions on invalid HTML input?
+;; Should it?
+;; The htmlprag (html->sxml) parser is supposed to be quite permissive...
+;;
+;; Also it would be a good idea to 'sanitize' the HTML content
+;; e.g. to allow only a subset of standard tags (a, img, p, b, etc.)
+;;
+(define (html->sxml-string content)
+  (with-output-to-string
+    (lambda ()
+      (write (html->sxml content)))))
+
 (define (main-page)
-   (if (member "new-post-title" (cgi:names))
-       (let ((title (cgi:value "new-post-title"))
-	     (content (cgi:value "new-post-content")))
-	 (dbq "INSERT INTO posts (title, timestamp, content, author) VALUES (~a, now(), ~a, ~a)"
-	      (->string title)
-	      (->string content)
-	      (->string (session-get-user session)))))
-   (standard-page-with-content
-    (map post->paragraph (gather-posts cn 999))))
+  (if (member "new-post-title" (cgi:names))
+      (let ((title (cgi:value "new-post-title"))
+	    (content (cgi:value "new-post-content")))
+	(dbq "INSERT INTO posts (title, timestamp, content, author) VALUES (~a, now(), ~s, ~a)"
+	     (->string title)
+	     (html->sxml-string content)
+	     (->string (session-get-user session)))))
+  (standard-page-with-content
+   (map post->sxml (gather-posts cn 999))))
 
 (define (new-post)
   (standard-page-with-content
@@ -350,10 +405,8 @@ exec guile -s $0 2>>guile-error.log
 		      (input (@ (type "text")
 				(name "new-post-title"))))
 		 (div (@ (id "new-post-content"))
-		      (textarea (@ (name "new-post-content")
-				   (rows 20)
-				   (cols 60))
-				"- Enter new post content here -"))
+		      (textarea (@ (name "new-post-content"))
+				"<!-- Enter new post content here, using standard HTML markup -->\n"))
 		 (input (@ (type "submit")
 			   (value "POST")))))))))
 
@@ -367,21 +420,22 @@ exec guile -s $0 2>>guile-error.log
 (newline)
 (newline)
 
-(sxml->xml
-       (case (->symbol cgi:request)
-	 ((new-post)  (new-post))
-	 ((delete)
-	  (delete-requested-post)
-	  (main-page))
-	 ((login)     (login-page))
-	 ((post-login)
-	  (if (process-login)
-	      (main-page)
-	      (invalid-login-page)))
-	 ((logout)
-	  (session-set-user! session #f)
-	  (main-page))
-	 ((#f)        (main-page))
-	 (else "** error: unknown request **")))
+(display
+ (sxml->html
+  (case (->symbol cgi:request)
+    ((new-post)  (new-post))
+    ((delete)
+     (delete-requested-post)
+     (main-page))
+    ((login)     (login-page))
+    ((post-login)
+     (if (process-login)
+	 (main-page)
+	 (invalid-login-page)))
+    ((logout)
+     (session-set-user! session #f)
+     (main-page))
+    ((#f)        (main-page))
+    (else "** error: unknown request **"))))
 
 
