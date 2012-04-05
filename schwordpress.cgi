@@ -30,6 +30,7 @@ exec guile -s $0 2>>guile-error.log
 	     (dbi dbi)
 	     (ice-9 regex)
 	     (sxml simple)
+	     (htmlprag)
 	     (www session db)
 	     (www cgi))
 
@@ -71,9 +72,6 @@ exec guile -s $0 2>>guile-error.log
 
 (define blog-name "Schwordpress Demo")
 (define css-file-name "schwordpress-standard.css")
-
-(define (sxml->html xml)
-  (with-output-to-string (lambda()(sxml->xml xml))))
 
 (define (->symbol x)
   (cond ((symbol? x) x)
@@ -214,13 +212,26 @@ exec guile -s $0 2>>guile-error.log
     (string->date (assoc-ref post "timestamp") "~Y-~m-~d~H:~M")
     " ~H:~M on ~A, ~B ~d ~Y")))
 
-(define (post->paragraph post)
+;; Convert 'content', a string which is supposed to contain SXML, to
+;; an SXML object suitable for including in the output SXML tree.
+(define (post-content->sxml content)
+  (let ((sxml (read (open-input-string content))))
+    (catch #t
+      (lambda ()
+	;; Attempt to render sxml content to a string, thus throwing an error if there's a problem.
+	(sxml->html sxml)
+	sxml)
+      (lambda args
+	`(p (@ (class "invalid-post"))
+	    "Something is wrong with this post's content:" ,content)))))
+
+(define (post->sxml post)
   (run-hooks
    'post-post
    `(div (@ (class "post"))
 	 (div (@ (class "post-title"))    ,(assoc-ref post "title"))
 	 (div (@ (class "byline"))        ,(format-byline post))
-	 (p (@ (class "content"))         ,(assoc-ref post "content"))
+	 (div (@ (class "content"))       ,(post-content->sxml (assoc-ref post "content")))
 	 (div (@ (class "meta"))
 	      ,(if (session-get-user session)
 		   `(a
@@ -310,7 +321,19 @@ exec guile -s $0 2>>guile-error.log
 	     uname passwd))
     (and (dbi-get_row cn)
 	 (session-set-user! session uname))))
-   
+
+;; FIXME will this throw exceptions on invalid HTML input?
+;; Should it?
+;; The htmlprag (html->sxml) parser is supposed to be quite permissive...
+;;
+;; Also it would be a good idea to 'sanitize' the HTML content
+;; e.g. to allow only a subset of standard tags (a, img, p, b, etc.)
+;;
+(define (html->sxml-string content)
+  (with-output-to-string
+    (lambda ()
+      (write (html->sxml content)))))
+
 (define (main-page)
    (if (member "new-post-title" (cgi:names))
        (let* ((title (car (cgi:values "new-post-title")))
@@ -318,13 +341,13 @@ exec guile -s $0 2>>guile-error.log
 	      (query
 	       (format
 		#f
-		"INSERT INTO posts (title, timestamp, content, author) VALUES (~a, now(), ~a, ~a)"
+		"INSERT INTO posts (title, timestamp, content, author) VALUES (~a, now(), ~s, ~a)"
 		(->string title)
-		(->string content)
+		(html->sxml-string content)
 		(->string (session-get-user session)))))
 	 (dbi-query cn query)))
    (standard-page-with-content
-    (map post->paragraph (gather-posts cn 999))))
+    (map post->sxml (gather-posts cn 999))))
 
 (define (new-post)
   (standard-page-with-content
@@ -339,10 +362,8 @@ exec guile -s $0 2>>guile-error.log
 		      (input (@ (type "text")
 				(name "new-post-title"))))
 		 (div (@ (id "new-post-content"))
-		      (textarea (@ (name "new-post-content")
-				   (rows 20)
-				   (cols 60))
-				"- Enter new post content here -"))
+		      (textarea (@ (name "new-post-content"))
+				"<!-- Enter new post content here, using standard HTML markup -->\n"))
 		 (input (@ (type "submit")
 			   (value "POST")))))))))
 
@@ -357,21 +378,22 @@ exec guile -s $0 2>>guile-error.log
 (newline)
 (newline)
 
-(sxml->xml
-       (case (->symbol cgi:request)
-	 ((new-post)  (new-post))
-	 ((delete)
-	  (delete-requested-post)
-	  (main-page))
-	 ((login)     (login-page))
-	 ((post-login)
-	  (if (process-login)
-	      (main-page)
-	      (invalid-login-page)))
-	 ((logout)
-	  (session-set-user! session #f)
-	  (main-page))
-	 ((#f)        (main-page))
-	 (else "** error: unknown request **")))
+(display
+ (sxml->html
+  (case (->symbol cgi:request)
+    ((new-post)  (new-post))
+    ((delete)
+     (delete-requested-post)
+     (main-page))
+    ((login)     (login-page))
+    ((post-login)
+     (if (process-login)
+	 (main-page)
+	 (invalid-login-page)))
+    ((logout)
+     (session-set-user! session #f)
+     (main-page))
+    ((#f)        (main-page))
+    (else "** error: unknown request **"))))
 
 

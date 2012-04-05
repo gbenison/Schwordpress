@@ -145,3 +145,8 @@ div#new_post div {
 #new-post-title > input {
     margin-left:    1em;
 }
+
+textarea {
+    width:          100%;
+    height:         20em;
+}
