@@ -49,7 +49,9 @@ div.post {
     padding-bottom:  5px;
 }
 
-p.content {
+div.content {
+    margin-top:      1em;
+    margin-bottom:   1em;
     margin-left:     5%;
     margin-right:    5%;
 }
@@ -77,6 +79,20 @@ div.meta:hover a {
 
 div.meta a {
     font-size:       70%;
+}
+
+div.invalid-post .label {
+    text-transform:  uppercase;
+    color:           red;
+    font-size:       80%;
+}
+
+div.invalid-post .detail {
+    display:        none;
+}
+
+div.invalid-post:hover .detail {
+    display:        block;
 }
 
 /************** sidebar ***************/

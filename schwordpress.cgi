@@ -55,6 +55,22 @@ exec guile -s $0 2>>guile-error.log
 	    (cons next (loop))
 	    '())))))
 
+(define (port->list port)
+  (let ((next (read port)))
+    (if (eof-object? next)
+	'()
+	(cons next (port->list port)))))
+
+(define (delimit xs delimiter)
+  (fold-right
+   (lambda (next result)
+     (cons next
+	   (if (null? result)
+	       result
+	       (cons delimiter result))))
+   '()
+   xs))
+
 (define (string-match-pred pattern)
   (lambda (str)(string-match pattern str)))
 
@@ -78,6 +94,11 @@ exec guile -s $0 2>>guile-error.log
 	((string? x) (string->symbol x))
 	((not x) #f)
 	(else (string->symbol (format #f "~a" x)))))
+
+(define (symbol/string->string x)
+  (if (symbol? x)
+      (symbol->string x)
+      x))
 
 (define (query->pair query)
   (let ((tmp (string-split query #\=)))
@@ -212,18 +233,32 @@ exec guile -s $0 2>>guile-error.log
     (string->date (assoc-ref post "timestamp") "~Y-~m-~d~H:~M")
     " ~H:~M on ~A, ~B ~d ~Y")))
 
-;; Convert 'content', a string which is supposed to contain SXML, to
+;; Convert post's 'content', a string which is supposed to contain SXML, to
 ;; an SXML object suitable for including in the output SXML tree.
-(define (post-content->sxml content)
-  (let ((sxml (read (open-input-string content))))
+(define (post-content->sxml post)
+  (let* ((content (assoc-ref post "content"))
+	 (sxml (map symbol/string->string (port->list (open-input-string content)))))
     (catch #t
       (lambda ()
 	;; Attempt to render sxml content to a string, thus throwing an error if there's a problem.
-	(sxml->html sxml)
-	sxml)
+	(for-each sxml->html sxml)
+	(delimit sxml " "))
       (lambda args
-	`(p (@ (class "invalid-post"))
-	    "Something is wrong with this post's content:" ,content)))))
+	`(div (@ (class "invalid-post"))
+	      (div (@ (class "label"))
+		   (p "* Problem with this post *"))
+	      (div (@ (class "detail"))
+		   (p ,(delete-button post))
+		   (p "This post's content:")
+		   (blockquote ,content)
+		   "Could not be rendered correctly:"
+		   (blockquote ,(format #f "~a" args))))))))
+
+(define (delete-button post)
+  `(a
+    (@ (href
+	,(format #f "schwordpress.cgi?request=delete&id=~a" (assoc-ref post "id"))))
+    "Delete post"))
 
 (define (post->sxml post)
   (run-hooks
@@ -231,13 +266,10 @@ exec guile -s $0 2>>guile-error.log
    `(div (@ (class "post"))
 	 (div (@ (class "post-title"))    ,(assoc-ref post "title"))
 	 (div (@ (class "byline"))        ,(format-byline post))
-	 (div (@ (class "content"))       ,(post-content->sxml (assoc-ref post "content")))
+	 (div (@ (class "content"))       ,(post-content->sxml post))
 	 (div (@ (class "meta"))
 	      ,(if (session-get-user session)
-		   `(a
-		     (@ (href
-			 ,(format #f "schwordpress.cgi?request=delete&id=~a" (assoc-ref post "id"))))
-		       "Delete post")
+		   (delete-button post)
 		   "")))))
 
 (define (standard-page-with-content . content)
