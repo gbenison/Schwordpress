@@ -204,7 +204,7 @@ exec guile -s $0 2>>guile-error.log
    (lambda (query)(dbq query)(dbi-get_row cn)) "sessions"))
 
 (define (gather-posts cn limit)
-  (dbq "SELECT id,title,timestamp,content,author FROM posts ORDER BY timestamp DESC LIMIT ~a" limit))
+  (dbq "SELECT id,title,timestamp,content,author FROM posts ORDER BY timestamp DESC LIMIT ~a" limit)
   (let loop ((result '()))
     (let ((next (dbi-get_row cn)))
       (if next
@@ -272,16 +272,19 @@ exec guile -s $0 2>>guile-error.log
 			(href "schwordpress.cgi?request=new-post"))
 		     "NEW POST")))))))
 
+
 (define (->string x)
-  (object->string
-   ;; Zonk CR; it renders as "\x0d", which is ugly.
-   ;; We don't bother replacing it w/ other whitespace because
-   ;; "normally" (given an RFC-conforming client) it is followed
-   ;; by LF to represent EOL.
-   (string-delete (if (string? x)
-                      x
-                      (fs "~a" x))
-                  #\cr)))
+ (object->string
+  (if (string? x)
+      ;; Convert CR, which renders as "\x0d" (ugly), to SP.
+      ;; We can't zonk it completely, much as we'd like, because
+      ;; "bare CR" is a RFC 2616 conformant line-break character.
+      (string-map (lambda (c)
+                    (if (char=? #\cr c)
+                        #\sp
+                        c))
+                  x)
+      x)))
 
 (define (login-form)
   `(form (@ (id "login")
